@@ -4,7 +4,7 @@
 
 While practicing,
 
-- adjusting theorical analysis related with DL
+- applying theoretical analysis related with DL
 - tuning hyperparameters for known datasets
 - implementing additional utilizing scripts
 
