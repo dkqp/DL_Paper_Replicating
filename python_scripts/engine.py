@@ -76,6 +76,8 @@ def train(model: torch.nn.Module,
                'test_loss': [],
                'test_acc': []}
 
+    model.to(device)
+
     for epoch in tqdm(range(epochs)):
         train_loss, train_acc = train_step(model=model,
                                            dataloader=train_dataloader,
@@ -106,11 +108,13 @@ def train_tensorboard(model: torch.nn.Module,
           accuracy_fn: Accuracy,
           epochs: int,
           device: torch.device,
-          writer: SummaryWriter):
+          writer: SummaryWriter = None):
     results = {'train_loss': [],
                'train_acc': [],
                'test_loss': [],
                'test_acc': []}
+
+    model.to(device)
 
     for epoch in tqdm(range(epochs)):
         train_loss, train_acc = train_step(model=model,

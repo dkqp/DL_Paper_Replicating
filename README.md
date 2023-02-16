@@ -11,3 +11,4 @@ While practicing,
 ## Progresses
 
 - 13 Feb 2023 - ViT architecture start
+- 16 Feb 2023 - ViT architecture model created

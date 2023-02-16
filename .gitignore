@@ -1,1 +1,5 @@
-/data/unextracted
+/data/extracted
+/runs
+/models
+
+__pycache__
