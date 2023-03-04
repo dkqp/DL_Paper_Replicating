@@ -48,10 +48,12 @@ def create_writer(experiment_name: str,
                   extra: str = None):
     timestamp = datetime.now().strftime('%Y-%m-%d')
 
+    # when using colab: /content/drive/MyDrive/Colab Notebooks/Paper Replicating/runs
+    # else: ../runs
     if extra:
         log_dir = os.path.join('../runs', timestamp, experiment_name, model_name, extra)
     else:
         log_dir = os.path.join('../runs', timestamp, experiment_name, model_name)
-    print(f'[INFO] Created SummaryWriter saving to {log_dir}')
+    print(f'[INFO] Creating SummaryWriter saving to {log_dir}')
 
     return SummaryWriter(log_dir=log_dir)

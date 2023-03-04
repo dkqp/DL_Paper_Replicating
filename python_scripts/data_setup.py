@@ -3,8 +3,9 @@ Contains functionality for creating PyTorch DataLoader's for image classificatio
 '''
 
 import os
+import torch, torchvision
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 
 def create_dataloaders(
   train_dir: str,
@@ -48,3 +49,21 @@ def create_dataloaders(
                                num_workers=num_workers)
 
   return train_dataloader, test_dataloader, class_names
+
+def split_dataset(
+        dataset: torchvision.datasets,
+        split_size: float = 0.2,
+        seed: int = 42
+):
+  length_1 = int(len(dataset) * split_size)
+  length_2 = len(dataset) - length_1
+
+  print(f'[INFO] Splitting dataset of length {len(dataset)} into splits of size: {length_1} and {length_2}')
+
+  random_split_1, random_split_2 = random_split(
+    dataset=dataset,
+    lengths=[length_1, length_2],
+    generator=torch.manual_seed(seed)
+  )
+
+  return random_split_1, random_split_2

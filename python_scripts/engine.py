@@ -3,11 +3,20 @@ Contains functions for training and testing a Pytorch model.
 '''
 
 import torch
-from torchmetrics import Accuracy
-
+from torch import nn
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+import torchvision
+from torchvision import datasets
+
+from torchmetrics import Accuracy
+
 from tqdm.auto import tqdm
+
+from typing import List
+
+from python_scripts import utils
 
 def train_step(
     model: torch.nn.Module,
@@ -138,17 +147,268 @@ def train_tensorboard(model: torch.nn.Module,
 
         if writer:
           writer.add_scalars(main_tag='Loss',
-                            tag_scalar_dict={'trains_loss': train_loss,
-                                              'test_loss': test_loss},
+                            tag_scalar_dict={'train_loss': results['train_loss'][-1],
+                                              'test_loss': results['test_loss'][-1]},
                             global_step=epoch)
           writer.add_scalars(main_tag='Accuracy',
-                            tag_scalar_dict={'train_acc': train_acc,
-                                              'test_acc': test_acc},
+                            tag_scalar_dict={'train_acc': results['train_acc'][-1],
+                                              'test_acc': results['test_acc'][-1]},
                             global_step=epoch)
           writer.add_graph(model=model,
                           input_to_model=torch.randn(32, 3, 224, 224).to(device))
-
-    if writer:
-       writer.close()
+          writer.close()
 
     return results
+
+def effnetb2_HP_tune_train_TSboard(
+    model_weights: torchvision.models,
+    train_dataset: datasets,
+    test_dataset: datasets,
+    dropout_p_list: List[int],
+    learning_rate_list: List[float],
+    weight_decay_list: List[float],
+    epochs_list: List[int],
+    batch_size_list: List[int],
+    is_writer: bool,
+    device: torch.device
+):
+    class_names_food101 = train_dataset.dataset.classes
+    tuning_results = []
+
+    for dropout_p in dropout_p_list:
+        for learning_rate in learning_rate_list:
+            for weight_decay in weight_decay_list:
+                for epochs in epochs_list:
+                    for batch_size in batch_size_list:
+                        t_result = {
+                            'dropout_p': dropout_p,
+                            'learning_rate': learning_rate,
+                            'weight_decay': weight_decay,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        }
+
+                        train_dataloader = DataLoader(
+                            dataset=train_dataset,
+                            batch_size=batch_size,
+                            shuffle=True
+                        )
+                        test_dataloader = DataLoader(
+                            dataset=test_dataset,
+                            batch_size=batch_size,
+                            shuffle=False
+                        )
+
+                        model = torchvision.models.efficientnet_b2(weights=model_weights)
+                        for param in model.parameters():
+                            param.requires_grad = False
+                        model.classifier = nn.Sequential(
+                            nn.Dropout(p=dropout_p, inplace=True),
+                            nn.Linear(
+                                in_features=1408,
+                                out_features=len(class_names_food101)
+                            )
+                        )
+
+                        writer = None
+                        if is_writer:
+                            writer = utils.create_writer(
+                                experiment_name='effnetb2_food101_test',
+                                model_name='EffNet_b2_food101',
+                                extra=f'DP_{dropout_p}_LR_{learning_rate}_WD_{weight_decay}_EP_{epochs}_BS_{batch_size}'
+                            )
+                        model_results = train_tensorboard(
+                            model=model,
+                            train_dataloader=train_dataloader,
+                            test_dataloader=test_dataloader,
+                            loss_fn=nn.CrossEntropyLoss(),
+                            optimizer=torch.optim.Adam(
+                                params=model.parameters(),
+                                lr=learning_rate,
+                                weight_decay=weight_decay
+                            ),
+                            accuracy_fn=Accuracy(
+                                task='multiclass',
+                                num_classes=len(class_names_food101)
+                            ),
+                            epochs=epochs,
+                            device=device,
+                            writer=writer
+                        )
+
+                        t_result['train_loss'] = model_results['train_loss'][-1]
+                        t_result['test_loss'] = model_results['test_loss'][-1]
+                        t_result['train_acc'] = model_results['train_acc'][-1]
+                        t_result['test_acc'] = model_results['test_acc'][-1]
+
+                        tuning_results.append(t_result)
+
+    return tuning_results
+
+def vitb16_HP_tune_train_TSboard(
+    model_weights: torchvision.models,
+    train_dataset: datasets,
+    test_dataset: datasets,
+    dropout_p_list: List[int],
+    learning_rate_list: List[float],
+    weight_decay_list: List[float],
+    epochs_list: List[int],
+    batch_size_list: List[int],
+    is_writer: bool,
+    device: torch.device
+):
+    class_names_food101 = train_dataset.dataset.classes
+    tuning_results = []
+
+    for dropout_p in dropout_p_list:
+        for learning_rate in learning_rate_list:
+            for weight_decay in weight_decay_list:
+                for epochs in epochs_list:
+                    for batch_size in batch_size_list:
+                        t_result = {
+                            'dropout_p': dropout_p,
+                            'learning_rate': learning_rate,
+                            'weight_decay': weight_decay,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        }
+
+                        train_dataloader = DataLoader(
+                            dataset=train_dataset,
+                            batch_size=batch_size,
+                            shuffle=True
+                        )
+                        test_dataloader = DataLoader(
+                            dataset=test_dataset,
+                            batch_size=batch_size,
+                            shuffle=False
+                        )
+
+                        model = torchvision.models.vit_b_16(weights=model_weights)
+                        for param in model.parameters():
+                            param.requires_grad = False
+                        model.heads = nn.Sequential(
+                            nn.Dropout(p=dropout_p, inplace=True),
+                            nn.Linear(
+                                in_features=768,
+                                out_features=len(class_names_food101)
+                            )
+                        )
+
+                        writer = None
+                        if is_writer:
+                            writer = utils.create_writer(
+                                experiment_name='vitb16_food101_test',
+                                model_name='ViT_b2_food101',
+                                extra=f'DP_{dropout_p}_LR_{learning_rate}_WD_{weight_decay}_EP_{epochs}_BS_{batch_size}'
+                            )
+                        model_results = train_tensorboard(
+                            model=model,
+                            train_dataloader=train_dataloader,
+                            test_dataloader=test_dataloader,
+                            loss_fn=nn.CrossEntropyLoss(),
+                            optimizer=torch.optim.Adam(
+                                params=model.parameters(),
+                                lr=learning_rate,
+                                weight_decay=weight_decay
+                            ),
+                            accuracy_fn=Accuracy(
+                                task='multiclass',
+                                num_classes=len(class_names_food101)
+                            ),
+                            epochs=epochs,
+                            device=device,
+                            writer=writer
+                        )
+
+                        t_result['train_loss'] = model_results['train_loss'][-1]
+                        t_result['test_loss'] = model_results['test_loss'][-1]
+                        t_result['train_acc'] = model_results['train_acc'][-1]
+                        t_result['test_acc'] = model_results['test_acc'][-1]
+
+                        tuning_results.append(t_result)
+
+    return tuning_results
+
+def vitb16_HP_tune_train_TSboard_nonfreeze(
+    model_weights: torchvision.models,
+    train_dataset: datasets,
+    test_dataset: datasets,
+    dropout_p_list: List[int],
+    learning_rate_list: List[float],
+    weight_decay_list: List[float],
+    epochs_list: List[int],
+    batch_size_list: List[int],
+    is_writer: bool,
+    device: torch.device
+):
+    class_names_food101 = train_dataset.dataset.classes
+    tuning_results = []
+
+    for dropout_p in dropout_p_list:
+        for learning_rate in learning_rate_list:
+            for weight_decay in weight_decay_list:
+                for epochs in epochs_list:
+                    for batch_size in batch_size_list:
+                        t_result = {
+                            'dropout_p': dropout_p,
+                            'learning_rate': learning_rate,
+                            'weight_decay': weight_decay,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        }
+
+                        train_dataloader = DataLoader(
+                            dataset=train_dataset,
+                            batch_size=batch_size,
+                            shuffle=True
+                        )
+                        test_dataloader = DataLoader(
+                            dataset=test_dataset,
+                            batch_size=batch_size,
+                            shuffle=False
+                        )
+
+                        model = torchvision.models.vit_b_16(weights=model_weights)
+                        model.heads = nn.Sequential(
+                            nn.Dropout(p=dropout_p, inplace=True),
+                            nn.Linear(
+                                in_features=768,
+                                out_features=len(class_names_food101)
+                            )
+                        )
+
+                        writer = None
+                        if is_writer:
+                            writer = utils.create_writer(
+                                experiment_name='vitb16_food101_test',
+                                model_name='ViT_b2_food101',
+                                extra=f'DP_{dropout_p}_LR_{learning_rate}_WD_{weight_decay}_EP_{epochs}_BS_{batch_size}'
+                            )
+                        model_results = train_tensorboard(
+                            model=model,
+                            train_dataloader=train_dataloader,
+                            test_dataloader=test_dataloader,
+                            loss_fn=nn.CrossEntropyLoss(),
+                            optimizer=torch.optim.Adam(
+                                params=model.parameters(),
+                                lr=learning_rate,
+                                weight_decay=weight_decay
+                            ),
+                            accuracy_fn=Accuracy(
+                                task='multiclass',
+                                num_classes=len(class_names_food101)
+                            ),
+                            epochs=epochs,
+                            device=device,
+                            writer=writer
+                        )
+
+                        t_result['train_loss'] = model_results['train_loss'][-1]
+                        t_result['test_loss'] = model_results['test_loss'][-1]
+                        t_result['train_acc'] = model_results['train_acc'][-1]
+                        t_result['test_acc'] = model_results['test_acc'][-1]
+
+                        tuning_results.append(t_result)
+
+    return tuning_results

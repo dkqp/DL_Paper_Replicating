@@ -12,3 +12,4 @@ While practicing,
 
 - 13 Feb 2023 - ViT architecture start
 - 16 Feb 2023 - ViT architecture model created
+- 2 Mar 2023 - Food101 dataset training experimenting
