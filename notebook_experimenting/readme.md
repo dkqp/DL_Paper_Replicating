@@ -26,3 +26,19 @@
   |<img src='../etc/images/Dense-161-transforms.png' width=500>|
   |<img src='../etc/images/ViT-food101-3.png' width=500>|
   |Accuracy maximum of about 76% after 30-epochs|
+
+
+  Training all parameters not only the last classifier layer shows improvement.
+
+  |ViT|
+  |:--:|
+  |<img src='../etc/images/ViT-food101-4.png' width=500>|
+  |Accuracy maximum of about 83% after 30-epochs|
+
+
+  Increasing batch size leads to small improvement of accuracy. Gradienet accumulation was applied for batch size of 64 which exceeds the gpu memory limit. However, the result still shows high bias and high variance.
+
+  |ViT|
+  |:--:|
+  |<img src='../etc/images/ViT-food101-5.png' width=500>|
+  |Accuracy maximum of about 85% after 30-epochs|
