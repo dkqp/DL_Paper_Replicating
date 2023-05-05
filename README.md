@@ -1,21 +1,30 @@
 # Deep-learning Paper Replicating with PyTorch
+An implementation of deep learning models of key architectures.
 
-## Practicing purpose for implementing DL models from papers with pytorch.
+While practicing, we can apply theoretical analysis related with DL such as tuning hyperparameters for known datasets
+<hr>
 
-While practicing,
+## Dependencies
+We're using python 3.8, PyTorch 1.13.1
+<hr>
 
-- applying theoretical analysis related with DL
-- tuning hyperparameters for known datasets
-- implementing additional utilizing scripts
+## Implemented
+|Model implementation (link to notebook)|Ref|Done|
+|:------------------------------------:|:-----------:|:----:|
+|[Vision Transformer](./notebook_replicating/ViT_architecture.ipynb)|[ICLR2021](https://arxiv.org/abs/2010.11929)|✅|
+|[VGG](./notebook_replicating/VGG-16_architecture.ipynb)|[ICLR2015](https://arxiv.org/pdf/1409.1556.pdf)|✅|
+|[ResNet](./notebook_replicating/Resnet_architecture.ipynb)|[CVPR2016](https://arxiv.org/pdf/1512.03385.pdf)|✅|
+|[GoogLeNet](./notebook_replicating/GoogLeNet_architecture.ipynb)|[CVPR2014](https://arxiv.org/pdf/1409.4842.pdf)|✅|
+
 
 ## Progresses
 
-- 16 Feb 2023 - ViT architecture model created
+- 16 Feb 2023 - **ViT** architecture model created
 - 2 Mar 2023 - Food101 dataset training experimenting
-- 16 Mar 2023 - VGG16 architecture model created
+- 16 Mar 2023 - **VGG16** architecture model created
 - 19 Mar 2023 - Food101 dataset training with VGG16 model
-- 20 Mar 2023 - Resnet architecture model created
-- 24 Mar 2023 - GoogLeNet architecture model created
+- 20 Mar 2023 - **Resnet** architecture model created
+- 24 Mar 2023 - **GoogLeNet** architecture model created
 
 ## Todo
 

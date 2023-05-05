@@ -290,5 +290,5 @@ class GoogLeNet(nn.Module):
         x = nn.Flatten()(x)
         x = self.classifier(x)
 
-        return (aux1, aux2, x)
-    
+        return x # (aux1, aux2, x)
+        # In this case I returned without aux1 and aux2 for convenience of utilizing engine.py helper module.
