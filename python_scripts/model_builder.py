@@ -786,3 +786,6 @@ def GoogLeNet(num_features: int):
 
 def MobileNetV1(num_classes):
     return MobileNet.MobileNetV1(num_classes=num_classes)
+
+def MobileNetV2(num_classes):
+    return MobileNet.MobileNetV2(num_classes=num_classes)
