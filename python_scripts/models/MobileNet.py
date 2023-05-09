@@ -138,16 +138,30 @@ class bottleneck_s1(nn.Module):
     def __init__(self, t, in_channels, out_channels, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.residual_connection = in_channels == out_channels
-        self.bn = nn.Sequential(
-            PW_conv(
-                in_channels=in_channels,
-                out_channels=in_channels * t,
-                activation='ReLU6'
-            ),
+        self.bn = nn.Sequential()
+        num = 0
+        if t > 1:
+            self.bn.add_module(
+                str(num),
+                PW_conv(
+                    in_channels=in_channels,
+                    out_channels=in_channels * t,
+                    activation='ReLU6'
+                )
+            )
+            num += 1
+
+        self.bn.add_module(
+            str(num),
             DW_conv(
                 reduction=False,
                 channels=in_channels * t
-            ),
+            )
+        )
+        num += 1
+
+        self.bn.add_module(
+            str(num),
             PW_conv(
                 in_channels=in_channels * t,
                 out_channels=out_channels,

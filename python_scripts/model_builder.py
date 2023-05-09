@@ -4,7 +4,7 @@ Contains Pytorch model code to instantiate a TinyVGG model from the CNN Explaine
 
 import torch
 from torch import nn
-from python_scripts.models import MobileNet, ViT, VGG, ResNet, Inception
+from python_scripts.models import MobileNet, ViT, VGG, ResNet, Inception, EfficientNet
 
 class TinyVGG(nn.Module):
     ''' TinyVGG class
@@ -789,3 +789,6 @@ def MobileNetV1(num_classes):
 
 def MobileNetV2(num_classes):
     return MobileNet.MobileNetV2(num_classes=num_classes)
+
+def EfficientNetB0(num_classes, dropout):
+    return EfficientNet.EfficientNetB0(num_classes=num_classes, dropout=dropout)

@@ -17,7 +17,7 @@ We're using python 3.8, PyTorch 1.13.1, TorchVision 0.14.1
 |[GoogLeNet](./notebook_replicating/GoogLeNet_architecture.ipynb)|[CVPR2014](https://arxiv.org/pdf/1409.4842.pdf)|✅|
 |[MobileNetV1](./notebook_replicating/MobileNetV1_architecture.ipynb)|[ARXIV2017](https://arxiv.org/abs/1704.04861)|✅|
 |[MobileNetV2](./notebook_replicating/MobileNetV2_architecture.ipynb)|[CVPR2018](https://arxiv.org/abs/1801.04381)|✅|
-|[EfficientNetB0](./notebook_replicating/EffcientNet_architecture.ipynb)|[ARXIV2019](https://ieeexplore.ieee.org/document/8578843)||
+|[EfficientNetB0](./notebook_replicating/EffcientNet_architecture.ipynb)|[ARXIV2019](https://ieeexplore.ieee.org/document/8578843)|✅|
 <hr>
 
 ## Progresses
@@ -33,7 +33,6 @@ We're using python 3.8, PyTorch 1.13.1, TorchVision 0.14.1
 <hr>
 
 ## Todo
-- EfficientNet 2019
 - Landmark detection 2014
 - YOLO 2015
 - R-CNN 2013, 2015
