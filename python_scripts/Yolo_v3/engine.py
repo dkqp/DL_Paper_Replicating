@@ -257,13 +257,13 @@ def HP_tune_train(
                         dataset=train_dataset,
                         batch_size=batch_size,
                         shuffle=True,
-                        collate_fn=train_dataset.dataset.collate_fn
+                        collate_fn=train_dataset.collate_fn or train_dataset.dataset.collate_fn
                     )
                     test_dataloader = DataLoader(
                         dataset=test_dataset,
                         batch_size=batch_size,
                         shuffle=False,
-                        collate_fn=test_dataset.dataset.collate_fn
+                        collate_fn=test_dataset.collate_fn or test_dataset.dataset.collate_fn
                     )
 
                     if not model:
