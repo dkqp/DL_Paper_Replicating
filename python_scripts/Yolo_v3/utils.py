@@ -76,8 +76,8 @@ def resize(image, size):
 # Calculate IOU of two boxes
 def calculate_iou(pred, target):
     '''
-    pred: x, y, w, h of a predicted box
-    target: x, y, w, h of a ground truth box
+    pred(tensor): x, y, w, h of a predicted box
+    target(tensor): x, y, w, h of a ground truth box
     returns a float number of iou
     '''
 
@@ -88,6 +88,26 @@ def calculate_iou(pred, target):
     area_intersect = area_intersect_width * area_intersect_height
 
     return area_intersect / (area_pred + area_target - area_intersect)
+
+def calculate_ious(preds, target):
+    '''
+    preds(tensor): multi-dimensional boxes(x, y, w, h) => shape example: (7, 7, 3, 4)
+    target(tensor): x, y, w, h of a ground truth box
+    returns a tensor of iou values => shape example: (7, 7, 3)
+    '''
+    device = preds.device
+    target = target.to(device)
+    preds_shape = preds.shape
+    preds = preds.reshape(-1, preds_shape[-1])
+    n = preds.shape[0]
+
+    area_preds = preds[:, 2] * preds[:, 3]
+    area_target = target[2] * target[3]
+    area_intersect_widths = torch.max(torch.concat([torch.tensor([0]).to(device).repeat(n, 1), (torch.min(torch.concat([(preds[:, 0] + preds[:, 2] / 2).reshape(-1, 1), (target[0] + target[2] / 2).repeat(n, 1)], dim=1), dim=1).values - torch.max(torch.concat([(preds[:, 0] - preds[:, 2] / 2).reshape(-1, 1), (target[0] - target[2] / 2).repeat(n, 1)], dim=1), dim=1).values).reshape(-1, 1)], dim=1), dim=1).values
+    area_intersect_heights = torch.max(torch.concat([torch.tensor([0]).to(device).repeat(n, 1), (torch.min(torch.concat([(preds[:, 1] + preds[:, 3] / 2).reshape(-1, 1), (target[1] + target[3] / 2).repeat(n, 1)], dim=1), dim=1).values - torch.max(torch.concat([(preds[:, 1] - preds[:, 3] / 2).reshape(-1, 1), (target[1] - target[3] / 2).repeat(n, 1)], dim=1), dim=1).values).reshape(-1, 1)], dim=1), dim=1).values
+    area_intersects = area_intersect_widths * area_intersect_heights
+
+    return (area_intersects / (area_preds + area_target - area_intersects)).reshape(preds_shape[:-1])
 
 # Define a loss funcion
 def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
@@ -123,7 +143,7 @@ def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
                 xy_ingrid = t[1:3] * d - torch.tensor([col, row])
                 wh_ingrid = t[3:] * d
 
-                ious = torch.tensor([utils.calculate_iou(torch.tensor([pred[1], pred[2], d * pred[3], d * pred[4]]), torch.concat([xy_ingrid, wh_ingrid])) for pred in pred_box[i, row, col]])
+                ious = calculate_ious(pred_box[i, row, col, :, 1:] * torch.tensor([1, 1, d, d]).to(device), torch.concat([xy_ingrid, wh_ingrid]))
                 max_i = torch.argmax(ious)
 
                 # calculate loss_xy, loss_wh of a target box of an image
@@ -135,6 +155,11 @@ def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
 
                 # calculate loss_conf of a target box of an image
                 target_box = torch.zeros((d, d, len(ious)))
+                row_min = int((t[2] - t[4] / 2) / (1 / d))
+                row_max = int((t[2] + t[4] / 2) / (1 / d))
+                col_min = int((t[1] - t[3] / 2) / (1 / d))
+                col_max = int((t[1] + t[3] / 2) / (1 / d))
+                target_box[row_min:row_max+1, col_min:col_max+1, :] = calculate_ious(pred_box[i, row_min:row_max+1, col_min:col_max+1, :, 1:] * torch.tensor([1, 1, d, d]).to(device), torch.concat([xy_ingrid, wh_ingrid])) * (lambda_noobj ** 0.5)
                 target_box[row, col, max_i] = torch.tensor(1)
                 temp_box_conf = pred_box[i, :, :, :, 0] * (lambda_noobj ** 0.5)
                 temp_box_conf[row, col, max_i] = pred_box[i, row, col, max_i, 0]
@@ -188,6 +213,7 @@ def pre_score_fn_Yolo(num_classes, use_nms=True):
     def pre_score_fn(output, prob_th=0, conf_th=0.5, nms_th=0.2):
         n, _, d, d = output.shape
         preds_temp = output[:, 4:].permute(0, 2, 3, 1).reshape(n, d, d, -1, 5)
+        k = preds_temp.shape[3]
         add_xy = torch.tensor([[[0, i, j, 0, 0] for i in range(d)] for j in range(d)]).reshape(1, d, d, 1, 5)
         mul_xy = torch.tensor([1, d, d, 1, 1]).reshape(1, 1, 1, 1, 5)
         preds = ((preds_temp + add_xy) / mul_xy).reshape(n, -1, 5)
@@ -197,7 +223,9 @@ def pre_score_fn_Yolo(num_classes, use_nms=True):
         for i in range(n):
             for j, prob in enumerate(probs[i]):
                 if torch.max(prob) >= prob_th:
-                    pred_per_classes[i][torch.argmax(prob)].extend(preds[i][3 * j: 3 * (j + 1)])
+                    preds_classprob = preds[i][k * j: k * (j + 1)]
+                    preds_classprob[:, 0] = torch.max(prob) * preds[i, 3 * j: 3 * (j + 1), 0]
+                    pred_per_classes[i][torch.argmax(prob)].extend(preds_classprob)
 
         if use_nms:
             return non_max_suppression(pred_per_classes, conf_th, nms_th)
@@ -212,7 +240,7 @@ def average_precision(iou_th=0.5):
 
     returns a function which calculates the APs of an image
         preds: List of predictions with index as classes. len(preds) is equal to num_classes.
-            The order of predictions is (confidence, x, y, w, h)
+            The order of predictions is (class_confidence, x, y, w, h)
         target: List of ground truth of class and boxes.
             The order of ground truth is (class, x, y, w, h)
     '''
@@ -275,7 +303,7 @@ def mean_average_precision(pred_checked, num_target):
             if recall_calculated == 1:
                 break
         for _ in range(len(precision_recall_11), 11):
-            precision_recall_11.append(precision_calculated)
+            precision_recall_11.append(0)
 
         AP.append(sum(precision_recall_11) / 11)
 
