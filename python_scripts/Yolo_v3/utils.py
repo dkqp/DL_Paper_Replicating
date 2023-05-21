@@ -102,50 +102,52 @@ def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
     '''
     def loss_fn(output, target):
         n, _, d, d = output.shape
+        device = output.device
         pred_class_prob = F.softmax(output[:, :num_classes].permute(0, 2, 3, 1), dim=3)
         pred_box = output[:, num_classes:].permute(0, 2, 3, 1).reshape(n, d, d, -1, 5)
 
-        predout_box = pred_box.clone()
+        loss_xy = torch.tensor(0, device=device, dtype=torch.float32)
+        loss_wh = torch.tensor(0, device=device, dtype=torch.float32)
+        loss_conf = torch.tensor(0, device=device, dtype=torch.float32)
+        loss_class = torch.tensor(0, device=device, dtype=torch.float32)
 
-        target_class_prob = pred_class_prob.clone().detach()
-        target_box = pred_box.clone().detach()
         for i in range(len(target)):
+            visited = set([])
             for t in target[i]:
                 row = int(t[2] / (1 / d))
                 col = int(t[1] / (1 / d))
+                if (row, col) in visited:
+                    continue
+                visited.add((row, col))
 
                 xy_ingrid = t[1:3] * d - torch.tensor([col, row])
                 wh_ingrid = t[3:] * d
 
-                ious = torch.tensor([calculate_iou(torch.tensor([1 * pred[1], 1 * pred[2], d * pred[3], d * pred[4]]), torch.concat([xy_ingrid, wh_ingrid])) for pred in pred_box[i, row, col]])
+                ious = torch.tensor([utils.calculate_iou(torch.tensor([pred[1], pred[2], d * pred[3], d * pred[4]]), torch.concat([xy_ingrid, wh_ingrid])) for pred in pred_box[i, row, col]])
                 max_i = torch.argmax(ious)
 
-                class_prob = torch.tensor([0] * num_classes)
-                class_prob[int(t[0])] = torch.tensor(1)
-                target_class_prob[i, row, col] = class_prob
+                # calculate loss_xy, loss_wh of a target box of an image
+                loss_xy += torch.sum(torch.square(pred_box[i, row, col, :, 1:3] - xy_ingrid.to(device))) * lambda_coord
+                loss_wh += torch.sum(torch.square(
+                    torch.sqrt(torch.abs(pred_box[i, row, col, :, 3:]) + 1e-9) \
+                    - torch.sqrt(torch.abs(t[3:].to(device)) + 1e-9)
+                )) * lambda_coord
 
-                target_box[i, row, col, max_i, 1:3] = xy_ingrid * (lambda_coord ** 0.5)
-                temp_box_xy = pred_box[i, row, col, max_i, 1:3] * (lambda_coord ** 0.5)
-
-                target_box[i, :, :, :, 3:] = torch.abs(pred_box[i, :, :, :, 3:]) * lambda_coord
-                target_box[i, row, col, max_i, 3:] = torch.abs(t[3:]) * lambda_coord
-                temp_box_wh = torch.abs(pred_box[i, :, :, :, 3:]) * lambda_coord
-
-                target_box[i, :, :, :, 0] = torch.tensor(0)
-                target_box[i, row, col, max_i, 0] = torch.tensor(1)
+                # calculate loss_conf of a target box of an image
+                target_box = torch.zeros((d, d, len(ious)))
+                target_box[row, col, max_i] = torch.tensor(1)
                 temp_box_conf = pred_box[i, :, :, :, 0] * (lambda_noobj ** 0.5)
                 temp_box_conf[row, col, max_i] = pred_box[i, row, col, max_i, 0]
 
-            predout_box[i, row, col, max_i, 1:3] = temp_box_xy
-            predout_box[i, :, :, :, 3:] = temp_box_wh
-            predout_box[i, :, :, :, 0] = temp_box_conf
+                loss_conf += torch.sum(torch.square(temp_box_conf - target_box.to(device)))
 
-        loss_xy = torch.sum(torch.square(predout_box[:, :, :, :, 1:3] - target_box[:, :, :, :, 1:3])) / n
-        loss_wh = torch.sum(torch.square(torch.sqrt(predout_box[:, :, :, :, 3:] + 1e-9) - torch.sqrt(target_box[:, :, :, :, 3:] + 1e-9))) / n
-        loss_conf = torch.sum(torch.square(predout_box[:, :, :, :, 0] - target_box[:, :, :, :, 0])) / n
-        loss_class = torch.sum(torch.square(pred_class_prob - target_class_prob)) / n
+                # calculate loss_class of a target box of an image
+                target_class_prob = torch.zeros((num_classes))
+                target_class_prob[int(t[0])] = torch.tensor(1.0)
 
-        return loss_xy + loss_wh + loss_conf + loss_class
+                loss_class += torch.sum(torch.square(pred_class_prob[i, row, col] - target_class_prob.to(device)))
+
+        return (loss_xy + loss_wh + loss_conf + loss_class) / n
 
     return loss_fn
 
@@ -302,7 +304,7 @@ def score_fn_Yolo(preds_checker):
 
         num_target = Counter([])
         for i in range(len(target)):
-            num_target += Counter([t[0] for t in target[i]])
+            num_target += Counter([int(t[0].item()) for t in target[i]])
 
         return mean_average_precision(all_preds_checked, num_target)
 
