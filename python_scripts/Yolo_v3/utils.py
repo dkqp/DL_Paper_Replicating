@@ -33,7 +33,6 @@ def horizontal_flip(image, label):
     image = transforms.functional.hflip(image)
     for l in label:
         l[1] = 1 - l[1]
-        l[2] = 1 - l[2]
     return image, label
 
 def x_transition(image, label):
@@ -133,9 +132,14 @@ def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
 
         for i in range(len(target)):
             visited = set([])
+            conf_coord = []
+            conf_obj = []
+            target_box = torch.zeros((d, d, pred_box.shape[3]))
             for t in target[i]:
                 row = int(t[2] / (1 / d))
                 col = int(t[1] / (1 / d))
+                if row >= d or row < 0 or col >= d or col < 0:
+                    print(f'(Loss function) The target grid is out of range! row: {row}, col: {col}')
                 if (row, col) in visited:
                     continue
                 visited.add((row, col))
@@ -147,24 +151,21 @@ def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
                 max_i = torch.argmax(ious)
 
                 # calculate loss_xy, loss_wh of a target box of an image
-                loss_xy += torch.sum(torch.square(pred_box[i, row, col, :, 1:3] - xy_ingrid.to(device))) * lambda_coord
+                loss_xy += torch.sum(torch.square(pred_box[i, row, col, max_i, 1:3] - xy_ingrid.to(device))) * lambda_coord
                 loss_wh += torch.sum(torch.square(
-                    torch.sqrt(torch.abs(pred_box[i, row, col, :, 3:]) + 1e-9) \
+                    torch.sqrt(torch.abs(pred_box[i, row, col, max_i, 3:]) + 1e-9) \
                     - torch.sqrt(torch.abs(t[3:].to(device)) + 1e-9)
                 )) * lambda_coord
 
-                # calculate loss_conf of a target box of an image
-                target_box = torch.zeros((d, d, len(ious)))
-                row_min = int((t[2] - t[4] / 2) / (1 / d))
-                row_max = int((t[2] + t[4] / 2) / (1 / d))
-                col_min = int((t[1] - t[3] / 2) / (1 / d))
-                col_max = int((t[1] + t[3] / 2) / (1 / d))
-                target_box[row_min:row_max+1, col_min:col_max+1, :] = calculate_ious(pred_box[i, row_min:row_max+1, col_min:col_max+1, :, 1:] * torch.tensor([1, 1, d, d]).to(device), torch.concat([xy_ingrid, wh_ingrid])) * (lambda_noobj ** 0.5)
-                target_box[row, col, max_i] = torch.tensor(1)
-                temp_box_conf = pred_box[i, :, :, :, 0] * (lambda_noobj ** 0.5)
-                temp_box_conf[row, col, max_i] = pred_box[i, row, col, max_i, 0]
-
-                loss_conf += torch.sum(torch.square(temp_box_conf - target_box.to(device)))
+                # calculate iou of a target box
+                row_min = max(int((t[2] - t[4] / 2) / (1 / d)), 0)
+                row_max = min(int((t[2] + t[4] / 2) / (1 / d)), d - 1)
+                col_min = max(int((t[1] - t[3] / 2) / (1 / d)), 0)
+                col_max = min(int((t[1] + t[3] / 2) / (1 / d)), d - 1)
+                iou_matrix = calculate_ious(pred_box[i, row_min:row_max+1, col_min:col_max+1, :, 1:] * torch.tensor([1, 1, d, d]).to(device), torch.concat([xy_ingrid, wh_ingrid]))
+                target_box[row_min:row_max+1, col_min:col_max+1, :] = iou_matrix * (lambda_noobj ** 0.5)
+                conf_coord.append((row, col, max_i))
+                conf_obj.append(iou_matrix[row - row_min, col - col_min, max_i])
 
                 # calculate loss_class of a target box of an image
                 target_class_prob = torch.zeros((num_classes))
@@ -172,6 +173,14 @@ def Yolo_loss(num_classes, lambda_coord=5, lambda_noobj=0.5):
 
                 loss_class += torch.sum(torch.square(pred_class_prob[i, row, col] - target_class_prob.to(device)))
 
+            # calculate loss_conf of target boxes of an image
+            temp_box_conf = torch.sigmoid(pred_box[i, :, :, :, 0]) * (lambda_noobj ** 0.5)
+            for j, (r, c, m) in enumerate(conf_coord):
+                target_box[r, c, m] = conf_obj[j]
+                temp_box_conf[r, c, m] = torch.sigmoid(pred_box[i, r, c, m, 0])
+            loss_conf += torch.sum(torch.square(temp_box_conf - target_box.to(device)))
+
+        # print(loss_xy.item(), loss_wh.item(), loss_conf.item(), loss_class.item())
         return (loss_xy + loss_wh + loss_conf + loss_class) / n
 
     return loss_fn
@@ -218,7 +227,8 @@ def pre_score_fn_Yolo(num_classes, use_nms=True):
         mul_xy = torch.tensor([1, d, d, 1, 1]).reshape(1, 1, 1, 1, 5)
         preds = ((preds_temp + add_xy) / mul_xy).reshape(n, -1, 5)
         preds[:, :, 3:] = torch.abs(preds_temp.reshape(n, -1, 5)[:, :, 3:])
-        probs = output[:, :4].permute(0, 2, 3, 1).reshape(n, d, d, -1, 4).reshape(n, -1, 4)
+        preds[:, :, 0] = torch.sigmoid(preds_temp.reshape(n, -1, 5)[:, :, 0])
+        probs = torch.softmax(output[:, :4].permute(0, 2, 3, 1), dim=3).reshape(n, -1, 4)
         pred_per_classes = [[[] for _ in range(num_classes)] for _ in range(n)]
         for i in range(n):
             for j, prob in enumerate(probs[i]):

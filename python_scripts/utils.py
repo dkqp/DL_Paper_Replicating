@@ -13,6 +13,7 @@ import os
 
 def save_model(
     model: torch.nn.Module,
+    optim: torch.optim.Optimizer,
     target_dir: str,
     model_name: str
 ):
@@ -39,7 +40,10 @@ def save_model(
 
     print(f'[INFO] Saving model to: {model_save_path}')
     torch.save(
-        obj=model.state_dict(),
+        obj={
+            'model': model.state_dict(),
+            'optimizer': optim.state_dict(),
+        },
         f=model_save_path
     )
 

@@ -42,7 +42,7 @@ def train_step_gradient_accumulation(
       output = model(X_batch_train, y_batch_train)
     else:
       output = model(X_batch_train)
-    y_pred = pre_score_fn(output.cpu())
+    y_pred = pre_score_fn(output.cpu().detach())
 
     loss = loss_fn(output, y_batch_train) / accumulation_num
     loss_accu += loss * accumulation_num
@@ -199,6 +199,7 @@ def train_tensorboard_gradient_accumulation(
            max_acc = test_acc
            utils.save_model(
               model=model,
+              optim=optimizer,
               target_dir='../models',
               model_name=f'{save_name}_EPOCH_{epoch}_TEST-ACC_{test_acc:.4f}.pth'
            )
@@ -257,13 +258,13 @@ def HP_tune_train(
                         dataset=train_dataset,
                         batch_size=batch_size,
                         shuffle=True,
-                        collate_fn=train_dataset.collate_fn or train_dataset.dataset.collate_fn
+                        collate_fn=getattr(train_dataset, 'collate_fn', None) or train_dataset.dataset.collate_fn
                     )
                     test_dataloader = DataLoader(
                         dataset=test_dataset,
                         batch_size=batch_size,
                         shuffle=False,
-                        collate_fn=test_dataset.collate_fn or test_dataset.dataset.collate_fn
+                        collate_fn=getattr(test_dataset, 'collate_fn', None) or test_dataset.dataset.collate_fn
                     )
 
                     if not model:
@@ -292,6 +293,10 @@ def HP_tune_train(
                             lr=learning_rate,
                             weight_decay=weight_decay
                         )
+                    else:
+                       for g in optimizer.param_groups:
+                          g['lr'] = learning_rate
+                          g['weight_decay'] = weight_decay
 
                     if not pre_score_fn:
                        pre_score_fn = (lambda x: torch.argmax(x, dim=1))
