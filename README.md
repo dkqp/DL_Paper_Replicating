@@ -18,7 +18,7 @@ We're using python 3.8, PyTorch 1.13.1, TorchVision 0.14.1
 |[MobileNetV1](./notebook_replicating/MobileNetV1_architecture.ipynb)|[ARXIV2017](https://arxiv.org/abs/1704.04861)|✅|
 |[MobileNetV2](./notebook_replicating/MobileNetV2_architecture.ipynb)|[CVPR2018](https://arxiv.org/abs/1801.04381)|✅|
 |[EfficientNetB0](./notebook_replicating/EffcientNet_architecture.ipynb)|[ARXIV2019](https://ieeexplore.ieee.org/document/8578843)|✅|
-|[YoloV1-3](./notebook_replicating/YoloV1-3_architecture.ipynb)|[CVPR2016](https://openaccess.thecvf.com/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf)||
+|[YoloV1](./notebook_replicating/YoloV1_architecture.ipynb)|[CVPR2016](https://openaccess.thecvf.com/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf)|✅|
 <hr>
 
 ## Progresses
@@ -31,8 +31,7 @@ We're using python 3.8, PyTorch 1.13.1, TorchVision 0.14.1
 - 7 May 2023 - **MobileNetV1** architecture model created
 - 7 May 2023 - **MobileNetV2** architecture model created
 - 8 May 2023 - **EfficientNetB0** architecture model created
+- 1 June 2023 - **YoloV1** architecture/training done
 <hr>
 
 ## Todo
-- YOLO 2015
-- U NET 2017
